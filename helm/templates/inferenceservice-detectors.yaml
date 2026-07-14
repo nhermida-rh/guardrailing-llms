@@ -23,9 +23,15 @@ spec:
         limits:
           cpu: '2'
           memory: 8Gi
+          {{- if .Values.detectors.useGpu }}
+          nvidia.com/gpu: '1'
+          {{- end }}
         requests:
           cpu: '1'
           memory: 4Gi
+          {{- if .Values.detectors.useGpu }}
+          nvidia.com/gpu: '1'
+          {{- end }}
       runtime: gibberish-detector
       storageUri: {{ .Values.detectors.gibberish.storageUri }}
 ---
@@ -53,9 +59,15 @@ spec:
         limits:
           cpu: '2'
           memory: 8Gi
+          {{- if .Values.detectors.useGpu }}
+          nvidia.com/gpu: '1'
+          {{- end }}
         requests:
           cpu: '1'
           memory: 4Gi
+          {{- if .Values.detectors.useGpu }}
+          nvidia.com/gpu: '1'
+          {{- end }}
       runtime: prompt-injection-detector
       storageUri: {{ .Values.detectors.promptInjection.storageUri }}
 ---
@@ -83,8 +95,14 @@ spec:
         limits:
           cpu: '2'
           memory: 8Gi
+          {{- if .Values.detectors.useGpu }}
+          nvidia.com/gpu: '1'
+          {{- end }}
         requests:
           cpu: '1'
           memory: 4Gi
+          {{- if .Values.detectors.useGpu }}
+          nvidia.com/gpu: '1'
+          {{- end }}
       runtime: ibm-hate-and-profanity-detector
       storageUri: {{ .Values.detectors.hateAndProfanity.storageUri }}

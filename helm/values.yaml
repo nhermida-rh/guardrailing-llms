@@ -26,6 +26,8 @@ mainLLM:
 
 # Detectors
 detectors:
+  # Set to true to request nvidia.com/gpu for detector InferenceServices (default: false)
+  useGpu: false
   gibberish:
     storageUri: "oci://quay.io/mmurakam/model-cars:gibberish-text-detector-v0.1.1"
     threshold: 0.35

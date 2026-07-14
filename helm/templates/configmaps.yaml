@@ -47,7 +47,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 data:
   GatewayImage: 'quay.io/repository/trustyai/vllm-orchestrator-gateway@sha256:c511b386d61a728acdfe8a1ac7a16b3774d072dd053718e5b9c5fab0f025ac3b'
-  regexDetectorImage: 'quay.io/repository/trustyai/regex-detector@sha256:efab6cd8b637b9c35d311aaf639dfedee7d28de3ee07b412ab473deadecd3606'
+  regexDetectorImage: 'quay.io/repository/trustyai/regex-detector@sha256:8c9ee944d6a745f3036c5f14d03db30c15cfa928b984f33b5d96180602f4e1ab'
 ---
 kind: ConfigMap
 apiVersion: v1
@@ -58,10 +58,10 @@ metadata:
     app: fmstack-nlp
 data:
   config.yaml: |
-    orchestrator:   
+    orchestrator:
       host: "localhost"
       port: {{ .Values.orchestrator.port }}
-    detectors:      
+    detectors:
       - name: regex
         input: true 
         output: true
@@ -81,7 +81,7 @@ data:
         input: true
         output: true
         detector_params: {}
-    routes:         
+    routes:
       - name: all
         detectors:
           - regex

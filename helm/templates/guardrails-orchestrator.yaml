@@ -5,7 +5,9 @@ metadata:
   name: gorch-sample
   namespace: {{ .Release.Namespace }}
 spec:
-  enableBuiltInDetectors: true
+  # The built-in detector sidecar is broken on OpenShift AI 3.5; the standalone
+  # regex-detector deployment (templates/regex-detector.yaml) replaces it.
+  enableBuiltInDetectors: false
   enableGuardrailsGateway: true
   guardrailsGatewayConfig: fms-orchestr8-config-gateway
   orchestratorConfig: fms-orchestr8-config-nlp

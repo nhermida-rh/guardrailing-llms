@@ -1,0 +1,56 @@
+---
+# Standalone regex (PII) detector.
+# The built-in detector sidecar shipped with OpenShift AI 3.5
+# (odh-built-in-detector-rhel9) fails to start with "ModuleNotFoundError: regex",
+# so the orchestrator uses this separate deployment instead.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: regex-detector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: regex-detector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: regex-detector
+  template:
+    metadata:
+      labels:
+        app: regex-detector
+    spec:
+      containers:
+        - name: regex-detector
+          image: {{ .Values.detectors.regex.image }}
+          ports:
+            - containerPort: {{ .Values.detectors.regex.port }}
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.detectors.regex.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: '1'
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: regex-detector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: regex-detector
+spec:
+  selector:
+    app: regex-detector
+  ports:
+    - name: http
+      port: {{ .Values.detectors.regex.port }}
+      targetPort: {{ .Values.detectors.regex.port }}
+      protocol: TCP

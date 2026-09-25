@@ -41,7 +41,14 @@ detectors:
     threshold: 0.5
     port: 8000
   regex:
+    # Upstream TrustyAI built-in detector (replaces the broken RHOAI 3.5 sidecar)
+    image: "quay.io/trustyai/guardrails-detector-built-in@sha256:cb9ede3538c44823800d2ffbbc65939292ad3591c1e064935c5edde6fee469f4"
     port: 8080
+    # Regex detectors applied by the gateway. The SSN detector is named
+    # "us-social-security-number" ("ssn" is silently ignored).
+    patterns:
+      - email
+      - us-social-security-number
 
 # Orchestrator
 orchestrator:
@@ -52,19 +59,25 @@ orchestrator:
 workbench:
   enabled: true
   name: guardrails-workbench
-  image: image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/s2i-minimal-notebook:2025.1
+  # Workbench image. When "tag" is empty, the chart picks the tag marked as
+  # recommended in the ImageStream (falls back to "fallbackTag").
+  image:
+    imageStream: s2i-minimal-notebook
+    namespace: redhat-ods-applications
+    tag: ""
+    fallbackTag: "3.5"
+    displayName: "Jupyter | Minimal | CPU | Python 3.12"
   resources:
     requests:
       cpu: "1"
-      memory: 8Gi
+      memory: 4Gi
     limits:
       cpu: "2"
-      memory: 8Gi
+      memory: 4Gi
   storage:
-    size: 1Gi
+    size: 5Gi
+  # Repository cloned into the workbench on first start
   gitRepo:
-    url: https://github.com/rh-ai-quickstart/guardrailing-llms.git
     enabled: true
-
-# Cluster configuration  
-clusterdomainurl: cluster.example.com
+    url: https://github.com/nhermida-rh/guardrailing-llms.git
+    branch: main

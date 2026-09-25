@@ -1,4 +1,8 @@
 ---
+# Orchestrator configuration.
+# NOTE: on OpenShift AI 3.x the KServe RawDeployment predictor Services are headless
+# (clusterIP: None), so the orchestrator must target the container ports directly
+# (8080 for vLLM, 8000 for the HF detectors) instead of the Service port 80.
 kind: ConfigMap
 apiVersion: v1
 metadata:
@@ -6,7 +10,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 data:
   config.yaml: |
-    chat_generation: 
+    chat_generation:
       service:
         hostname: {{ .Values.mainLLM.name }}-predictor.{{ .Release.Namespace }}.svc.cluster.local
         port: {{ .Values.mainLLM.port }}
@@ -14,8 +18,8 @@ data:
       regex:
         type: text_contents
         service:
-            hostname: "127.0.0.1"
-            port: {{ .Values.detectors.regex.port }}
+          hostname: regex-detector.{{ .Release.Namespace }}.svc.cluster.local
+          port: {{ .Values.detectors.regex.port }}
         chunker_id: whole_doc_chunker
         default_threshold: 0.5
       hap:
@@ -43,15 +47,6 @@ data:
 kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: gorch-regex-gateway-image-config
-  namespace: {{ .Release.Namespace }}
-data:
-  GatewayImage: 'quay.io/repository/trustyai/vllm-orchestrator-gateway@sha256:c511b386d61a728acdfe8a1ac7a16b3774d072dd053718e5b9c5fab0f025ac3b'
-  regexDetectorImage: 'quay.io/repository/trustyai/regex-detector@sha256:8c9ee944d6a745f3036c5f14d03db30c15cfa928b984f33b5d96180602f4e1ab'
----
-kind: ConfigMap
-apiVersion: v1
-metadata:
   name: fms-orchestr8-config-gateway
   namespace: {{ .Release.Namespace }}
   labels:
@@ -63,12 +58,11 @@ data:
       port: {{ .Values.orchestrator.port }}
     detectors:
       - name: regex
-        input: true 
+        input: true
         output: true
         detector_params:
           regex:
-            - email
-            - ssn
+            {{- toYaml .Values.detectors.regex.patterns | nindent 12 }}
       - name: hap
         input: true
         output: true

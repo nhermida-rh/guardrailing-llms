@@ -1,22 +1,59 @@
 {{- if .Values.workbench.enabled }}
+{{- $image := include "workbench.image" . }}
 ---
+# Workbench for OpenShift AI 3.x. The "inject-auth" annotation makes the notebook
+# controller add the kube-rbac-proxy sidecar, route and network policies.
 apiVersion: kubeflow.org/v1
 kind: Notebook
 metadata:
   name: {{ .Values.workbench.name }}
   namespace: {{ .Release.Namespace }}
   annotations:
-    notebooks.opendatahub.io/inject-oauth: "true"
-    notebooks.opendatahub.io/last-image-selection: 'jupyter-minimal-cpu-py312-ubi9:2025.1'
-    notebooks.opendatahub.io/last-image-version-git-commit-selection: d3137ca
-    opendatahub.io/image-display-name: Jupyter | Minimal | CPU | Python 3.12
+    notebooks.opendatahub.io/inject-auth: "true"
+    notebooks.opendatahub.io/last-image-selection: {{ printf "%s:%s" .Values.workbench.image.imageStream (include "workbench.imageTag" .) | quote }}
+    opendatahub.io/image-display-name: {{ .Values.workbench.image.displayName | quote }}
+    openshift.io/display-name: {{ .Values.workbench.name }}
     argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app: {{ .Values.workbench.name }}
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/odh-managed: "true"
 spec:
   template:
     spec:
+      {{- if .Values.workbench.gitRepo.enabled }}
+      initContainers:
+        # Clones the demo repository into the workbench storage on first start
+        - name: clone-repo
+          image: {{ $image }}
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              REPO_DIR=/opt/app-root/src/{{ base .Values.workbench.gitRepo.url | trimSuffix ".git" }}
+              if [ -d "$REPO_DIR/.git" ]; then
+                echo "Repository already present at $REPO_DIR"
+              else
+                git clone --branch {{ .Values.workbench.gitRepo.branch }} {{ .Values.workbench.gitRepo.url }} "$REPO_DIR"
+              fi
+          volumeMounts:
+            - name: {{ .Values.workbench.name }}-storage
+              mountPath: /opt/app-root/src
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      {{- end }}
       containers:
         - name: {{ .Values.workbench.name }}
-          image: {{ .Values.workbench.image }}
+          image: {{ $image }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8888
+              name: notebook-port
+              protocol: TCP
           resources:
             requests:
               cpu: {{ .Values.workbench.resources.requests.cpu | quote }}
@@ -24,9 +61,23 @@ spec:
             limits:
               cpu: {{ .Values.workbench.resources.limits.cpu | quote }}
               memory: {{ .Values.workbench.resources.limits.memory }}
+          readinessProbe:
+            httpGet:
+              path: /notebook/{{ .Release.Namespace }}/{{ .Values.workbench.name }}/api
+              port: notebook-port
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /notebook/{{ .Release.Namespace }}/{{ .Values.workbench.name }}/api
+              port: notebook-port
+            initialDelaySeconds: 10
+            periodSeconds: 5
           volumeMounts:
-            - name: workbench-pvc
+            - name: {{ .Values.workbench.name }}-storage
               mountPath: /opt/app-root/src
+            - name: shm
+              mountPath: /dev/shm
           workingDir: /opt/app-root/src
           env:
             - name: NOTEBOOK_ARGS
@@ -36,12 +87,13 @@ spec:
                 --ServerApp.password=''
                 --ServerApp.base_url=/notebook/{{ .Release.Namespace }}/{{ .Values.workbench.name }}
                 --ServerApp.quit_button=False
-                --ServerApp.tornado_settings={"user":"admin","hub_host":"https://rhods-dashboard-redhat-ods-applications.apps.{{ .Values.clusterdomainurl }}","hub_prefix":"/projects/{{ .Release.Namespace }}"}
             - name: JUPYTER_IMAGE
-              value: {{ .Values.workbench.image | quote }}
-      serviceAccountName: {{ .Values.workbench.name }}
+              value: {{ $image | quote }}
       volumes:
-        - name: workbench-pvc
+        - name: {{ .Values.workbench.name }}-storage
           persistentVolumeClaim:
-            claimName: {{ .Values.workbench.name }}
+            claimName: {{ .Values.workbench.name }}-storage
+        - name: shm
+          emptyDir:
+            medium: Memory
 {{- end }}

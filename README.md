@@ -2,13 +2,15 @@
 
 Build a healthcare AI assistant that ensures your large language model has multiple layers of protection, including PII detection and content moderation.
 
+> This fork adapts the original [rh-ai-quickstart/guardrailing-llms](https://github.com/rh-ai-quickstart/guardrailing-llms) quickstart to **Red Hat OpenShift AI 3.x**. See [Changes for OpenShift AI 3.x](#changes-for-openshift-ai-3x).
+
 ## Detailed description 
 
 This quickstart includes a healthcare AI assistant demo showing how
 guardrails could help protect HIPAA-compliant applications.
 
 The demo tests a patient services AI with four protection layers:
-1. **PII Detection** - Protects Social Security Numbers and medical IDs
+1. **PII Detection** - Protects Social Security Numbers and email addresses
 2. **Content Moderation** - Blocks inappropriate language  
 3. **Prompt Injection Protection** - Prevents system manipulation
 4. **Gibberish Detection** - Filters out nonsense queries
@@ -24,11 +26,10 @@ The LLM Guardrails quickstart is a quick-start template for deploying multiple l
 This quickstart includes a Helm chart for deploying:
 
 - A Llama 3.2 3B Instruct model with GPU acceleration.
-- Multiple AI safety detectors: gibberish detection, prompt injection detection, and hate/profanity detection.
+- Multiple AI safety detectors: regex (PII), gibberish detection, prompt injection detection, and hate/profanity detection.
 - TrustyAI GuardrailsOrchestrator for coordinating safety checks.
+- A Jupyter workbench with this repository already cloned.
 - Configurable detection thresholds and routing policies.
-
-
 
 <!-- ## Arcade demo -->
 
@@ -52,21 +53,22 @@ This quickstart includes a Helm chart for deploying:
 
 ### Minimum hardware requirements 
 
-- GPU required for main LLM: 1 x NVIDIA GPU with 24GiB vRAM
+- GPU required for main LLM: 1 x NVIDIA GPU with 24GiB vRAM (e.g. NVIDIA L4 or A10G)
 - CPU cores: 8+ cores total
 - Memory: 16Gi+ RAM total
 - Storage: 5Gi 
 
 ### Minimum software requirements
 
-- Red Hat OpenShift 4.19.9
-- Red Hat OpenShift Service Mesh 2
-- Red Hat OpenShift AI 2.23.0
-    - KServe needs to be enabled
+- Red Hat OpenShift AI 3.x (tested on 3.5.0)
+    - `kserve` and `trustyai` components set to `Managed` in the DataScienceCluster
+- NVIDIA GPU Operator with at least one **free** GPU
 
-**Please note before you start**
+Check the components with:
 
-This example was tested on Red Hat OpenShift 4.19.9 & Red Hat OpenShift AI 2.23.0.
+```bash
+oc get datasciencecluster -o jsonpath='{.items[0].spec.components.trustyai.managementState}{"\n"}{.items[0].spec.components.kserve.managementState}{"\n"}'
+```
 
 ### Required user permissions
 
@@ -74,10 +76,12 @@ This example was tested on Red Hat OpenShift 4.19.9 & Red Hat OpenShift AI 2.23.
 
 ## Install
 
+The commands below can be run from your machine (with `oc` and `helm` installed) or from the OpenShift **Web Terminal**, which already includes both tools.
+
 ### Clone the repository
 
-```
-git clone https://github.com/rh-ai-quickstart/guardrailing-llms.git && cd guardrailing-llms/
+```bash
+git clone https://github.com/nhermida-rh/guardrailing-llms.git && cd guardrailing-llms/
 ```
 
 ### Create a new project
@@ -91,8 +95,10 @@ oc new-project ${PROJECT}
 ### Install with Helm
 
 ```bash
-helm install ${PROJECT} helm/ --namespace ${PROJECT} 
+helm install ${PROJECT} helm/ --namespace ${PROJECT}
 ```
+
+That's it: models, detectors, orchestrator and workbench are created by this single command.
 
 ### Wait for the pods to be ready
 
@@ -100,34 +106,29 @@ helm install ${PROJECT} helm/ --namespace ${PROJECT}
 oc get pod -n ${PROJECT}
 ```
 
-You should see an output similar to:
+The LLM can take 5-15 minutes the first time while the model image is downloaded. You should see an output similar to:
 <pre>
-NAME                                                         READY   STATUS      RESTARTS   AGE
-gibberish-detector-predictor-578fc59776-www4s                2/2     Running     0          25h
-gorch-sample-5f95f587fd-wmk4x                                3/3     Running     0          51m
-guardrails-workbench-0                                       2/2     Running     0          93m
-guardrails-workbench-clone-repo-96jhd                        0/1     Completed   0          93m
-ibm-hate-and-profanity-detector-predictor-846758cfb5-wnlnd   2/2     Running     0          25h
-llama-32-3b-instruct-predictor-c8d55bd58-lctjn               2/2     Running     0          18m
-prompt-injection-detector-predictor-7d784957f9-f2x5g         2/2     Running     0          25h
+NAME                                                         READY   STATUS    RESTARTS   AGE
+gibberish-detector-predictor-747d584d9c-n89nd                3/3     Running   0          9m
+gorch-sample-7c58ccbb58-2vd5k                                2/2     Running   0          9m
+guardrails-workbench-0                                       2/2     Running   0          9m
+ibm-hate-and-profanity-detector-predictor-656ccfbb4f-5w2t7   3/3     Running   0          9m
+llama-32-3b-instruct-predictor-d77c7787c-wssmv               3/3     Running   0          9m
+prompt-injection-detector-predictor-6997fc8d67-hbqnl         3/3     Running   0          9m
+regex-detector-7c5ccd89b-vg848                               1/1     Running   0          9m
 </pre>
 
 ### Test
 
-You can get the OpenShift AI Dashboard URL by:
-```bash
-oc get routes rhods-dashboard -n redhat-ods-applications
-```
-
-Once inside the dashboard, navigate to Data Science Projects -> guardrails-demo (or what you called your ${PROJECT} if you changed from default).
+Open the OpenShift AI dashboard (from the OpenShift console, use the application launcher → **Red Hat OpenShift AI**) and navigate to **Projects** → `guardrails-demo` (or the name you used for `${PROJECT}`).
 
 ![OpenShift AI Projects](docs/images/wb1.png)
 
-Inside the project you can see Workbenches, open up the one for guardrails-workbench.
+Inside the project, open the **Workbenches** tab and open `guardrails-workbench`.
 
 ![OpenShift AI WB](docs/images/wb2.png)
 
-Open the workbench, inside of the Jupyter Notebook folder, you'll see the `guardrailing-llms` repository already cloned, go to `docs/healthcare-guardrails.ipynb` and follow the instructions.
+Inside Jupyter you'll see the `guardrailing-llms` repository already cloned. Open `docs/healthcare-guardrails.ipynb` and run the cells. The notebook detects the project it runs in, so no configuration changes are needed.
 
 ![OpenShift AI Jupyter Notebook](docs/images/wb3.png)
 
@@ -136,8 +137,40 @@ Enjoy!
 ### Delete
 
 ```bash
-helm uninstall ${PROJECT} --namespace ${PROJECT} 
+helm uninstall ${PROJECT} --namespace ${PROJECT}
 ```
+
+## Configuration
+
+Useful values (see `helm/values.yaml` for all of them), passed with `--set`:
+
+| Value | Default | Description |
+|---|---|---|
+| `workbench.enabled` | `true` | Create the Jupyter workbench |
+| `workbench.image.tag` | `""` | Workbench image tag. Empty = use the tag marked as recommended by OpenShift AI |
+| `workbench.gitRepo.url` / `branch` | this fork / `main` | Repository cloned into the workbench |
+| `detectors.regex.patterns` | `email`, `us-social-security-number` | PII patterns checked by the regex detector |
+| `detectors.useGpu` | `false` | Run the HF detectors on GPU |
+| `mainLLM.tolerations` | `nvidia.com/gpu=True:NoSchedule` | Adjust if your GPU nodes use a different taint |
+
+## Troubleshooting
+
+| Symptom | Cause / fix |
+|---|---|
+| `no matches for kind "GuardrailsOrchestrator"` | The `trustyai` component is not `Managed` in the DataScienceCluster |
+| LLM pod `Pending` with `Insufficient nvidia.com/gpu` | The GPU is used by another model. Find it with `oc get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"  "}{.metadata.name}{"  "}{.spec.containers[*].resources.requests.nvidia\.com/gpu}{"\n"}{end}' \| awk 'NF>=3'` and stop it from the OpenShift AI dashboard |
+| Notebook returns `Orchestrator returned error status 500` | Check the orchestrator logs: `oc logs -n ${PROJECT} deploy/gorch-sample -c gorch-sample --tail=50` |
+
+## Changes for OpenShift AI 3.x
+
+Compared to the original quickstart (tested on OpenShift AI 2.23):
+
+- **PII detector**: the built-in detector sidecar shipped with OpenShift AI 3.5 (`odh-built-in-detector-rhel9`) fails to start with `ModuleNotFoundError: No module named 'regex'`. The chart disables it (`enableBuiltInDetectors: false`) and deploys the upstream TrustyAI built-in detector as a standalone `regex-detector` Deployment/Service.
+- **SSN pattern**: that detector names the SSN pattern `us-social-security-number`; the previous `ssn` value was silently ignored.
+- **Detector and LLM ports**: KServe RawDeployment predictor Services are headless in 3.x, so the orchestrator targets the container ports (8000 for detectors, 8080 for vLLM) directly.
+- **Workbench**: uses the 3.x `notebooks.opendatahub.io/inject-auth` annotation (kube-rbac-proxy), picks the recommended `s2i-minimal-notebook` image tag automatically, and clones the repository with an init container instead of a Job with `pods/exec` permissions.
+- **Notebook**: reads the project name from the workbench service account, so the demo works in any namespace.
+- Removed the unused `gorch-regex-gateway-image-config` ConfigMap and the `clusterdomainurl` value.
 
 ## References 
 

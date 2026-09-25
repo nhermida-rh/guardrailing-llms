@@ -3,15 +3,13 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Values.workbench.name }}
+  name: {{ .Values.workbench.name }}-storage
   namespace: {{ .Release.Namespace }}
   annotations:
-    openshift.io/display-name: Guardrails Workbench PVC
+    openshift.io/display-name: {{ .Values.workbench.name }}-storage
     argocd.argoproj.io/sync-wave: "0"
   labels:
     opendatahub.io/dashboard: "true"
-  finalizers:
-    - kubernetes.io/pvc-protection
 spec:
   accessModes:
     - ReadWriteOnce
